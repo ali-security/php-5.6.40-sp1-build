@@ -79,7 +79,11 @@ LINE
     make depend
     # 1.0.2's Makefiles race on libcrypto.a under -j.
     make
-    make test
+    # Gate on the arithmetic/crypto self-tests (a miscompile shows up here). Full `make test` cannot be
+    # used: 1.0.2u's bundled test certificates have expired, so its SSL and CMS tests fail on any build.
+    make -C test bntest ectest ecdsatest ecdhtest exptest rsa_test dhtest evp_test
+    (cd test && ./bntest >/dev/null && ./ectest >/dev/null && ./ecdsatest >/dev/null && ./ecdhtest >/dev/null \
+        && ./exptest >/dev/null && ./rsa_test >/dev/null && ./dhtest >/dev/null && ./evp_test evptests.txt >/dev/null)
     # OPENSSLDIR is compiled in at Configure time; override it here only so install_sw stays out of /private/etc.
     make install_sw OPENSSLDIR="$OPENSSL_PREFIX/ssl"
     popd
