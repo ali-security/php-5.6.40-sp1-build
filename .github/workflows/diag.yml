@@ -8,24 +8,14 @@ jobs:
   gd-probe:
     runs-on: macos-15
     steps:
-      - name: Link a trivial program against each GD dependency and run it
+      - name: Which flags stop Apple clang trapping on a missing return in C
         run: |
-          brew install jpeg libpng freetype
-          sw_vers; clang --version | head -1
-          cat > t.c <<'C'
-          char foobar () {}
-          char foobar();
-          int main() { foobar(); return 0; }
-          C
-          export MACOSX_DEPLOYMENT_TARGET=15.0
-          F="-O2 -std=gnu99 -fvisibility=hidden"
-          for libs in "" "-lz" "-ljpeg" "-lpng" "-lfreetype" "-lpng -lz -ljpeg -lfreetype"; do
-            L=""
-            for p in jpeg libpng freetype; do L="$L -L$(brew --prefix $p)/lib -Wl,-rpath,$(brew --prefix $p)/lib"; done
-            cc -o t $F t.c $L $libs && { ./t; echo "libs=[$libs] exit=$?"; }
+          set +e
+          clang --version | head -1
+          printf 'char foobar () {}\nchar foobar();\nint main() { foobar(); return 0; }\n' > t.c
+          for f in "-O2" "-O0" "-O2 -fno-strict-return" "-O2 -fno-strict-return -std=gnu99" "-O2 -std=gnu99" "-O2 -mllvm -trap-unreachable=false" "-O2 -fno-strict-return -mllvm -trap-unreachable=false" "-O2 -Wno-return-type -fno-strict-return" "-O2 -Xclang -fno-strict-return"; do
+            cc $f -w -o t t.c && ./t; echo "flags=[$f] exit=$?"
           done
-          unset MACOSX_DEPLOYMENT_TARGET
-          cc -o t2 $F t.c && { ./t2; echo "no-deployment-target exit=$?"; }
-          cc -o t3 -O0 -std=gnu99 t.c && { ./t3; echo "O0 exit=$?"; }
-          cc -O2 -std=gnu99 -S -o - t.c | head -40
-          lldb --batch -o run -o bt -o 'disassemble --pc' ./t || true
+          echo "== asm -O2"; cc -O2 -S -o - t.c 2>/dev/null | sed -n '/_foobar:/,/_main:/p'
+          echo "== asm -O2 -fno-strict-return"; cc -O2 -fno-strict-return -S -o - t.c 2>/dev/null | sed -n '/_foobar:/,/_main:/p'
+          echo "== -### -O2 -fno-strict-return"; cc -### -O2 -fno-strict-return -c t.c 2>&1 | tr ' ' '\n' | grep -iE 'strict|return|trap' 
