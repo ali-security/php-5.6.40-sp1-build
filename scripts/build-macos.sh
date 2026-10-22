@@ -213,7 +213,8 @@ function bundle() {
     cp "$CODE_DIR/LICENSE" "$BUNDLE_DIR/LICENSE"
     cp "$REPO_DIR/patches/CVE-2026-109618+CVE-2026-109619.patch" "$BUNDLE_DIR/"
     # Copy every Homebrew dylib (recursively) into lib/ and point the loader at it; re-signs ad hoc.
-    dylibbundler -od -b -cd -ns \
+    # No -od: it would wipe lib/, which already holds lib/php/extensions.
+    dylibbundler -b -cd -ns \
         -x "$BUNDLE_DIR/bin/php" \
         $(find "$BUNDLE_DIR/lib/php/extensions" -name '*.so' -exec echo -x {} \;) \
         -d "$BUNDLE_DIR/lib/" -p @executable_path/../lib/
