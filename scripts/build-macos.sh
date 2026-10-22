@@ -73,10 +73,13 @@ LINE
         target=darwin64-arm64-cc
     fi
     # Static, so the bundle carries no libssl dylib; /private/etc/ssl/cert.pem is the macOS CA bundle.
-    ./Configure $target no-shared no-ssl2 no-ssl3 --prefix="$OPENSSL_PREFIX" --openssldir=/private/etc/ssl
+    # -fno-strict-aliasing: Apple clang -O3 miscompiles 1.0.2's EC code on arm64 (ectest fails, TLS with
+    # EC certificates reports "point is not on curve").
+    ./Configure $target no-shared no-ssl2 no-ssl3 -fno-strict-aliasing --prefix="$OPENSSL_PREFIX" --openssldir=/private/etc/ssl
     make depend
     # 1.0.2's Makefiles race on libcrypto.a under -j.
     make
+    make test
     # OPENSSLDIR is compiled in at Configure time; override it here only so install_sw stays out of /private/etc.
     make install_sw OPENSSLDIR="$OPENSSL_PREFIX/ssl"
     popd
