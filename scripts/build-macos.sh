@@ -46,8 +46,12 @@ function build_openssl() {
     cd openssl-$OPENSSL_VERSION
     local target=darwin64-x86_64-cc
     if [ "$ARCH" = arm64 ]; then
-        # 1.0.2 predates Apple Silicon: add the darwin64-arm64-cc target (no assembler) next to x86_64.
-        perl -0pi -e 's/("darwin64-x86_64-cc".*\n)/$1"darwin64-arm64-cc","cc:-arch arm64 -O3 -DL_ENDIAN -Wall::-D_REENTRANT:MACOSX:-Wl,-search_paths_first%:SIXTY_FOUR_BIT_LONG RC4_CHAR RC4_CHUNK DES_INT DES_UNROLL BF_PTR:\\\${no_asm}:dlfcn:darwin-shared:-fPIC -fno-common:-arch arm64 -dynamiclib:.\\\$(SHLIB_MAJOR).\\\$(SHLIB_MINOR).dylib",\n/' Configure
+        # 1.0.2 predates Apple Silicon: add a darwin64-arm64-cc target (no assembler) after darwin64-x86_64-cc.
+        cat > "$WORKDIR/darwin64-arm64-cc.line" <<'LINE'
+"darwin64-arm64-cc","cc:-arch arm64 -O3 -DL_ENDIAN -Wall::-D_REENTRANT:MACOSX:-Wl,-search_paths_first%:SIXTY_FOUR_BIT_LONG RC4_CHAR RC4_CHUNK DES_INT DES_UNROLL BF_PTR:${no_asm}:dlfcn:darwin-shared:-fPIC -fno-common:-arch arm64 -dynamiclib:.\$(SHLIB_MAJOR).\$(SHLIB_MINOR).dylib",
+LINE
+        LINE_FILE="$WORKDIR/darwin64-arm64-cc.line" perl -i -pe 'BEGIN { local $/; open my $f, "<", $ENV{LINE_FILE} or die; $l = <$f> } $_ .= $l if /^"darwin64-x86_64-cc"/' Configure
+        grep -q '^"darwin64-arm64-cc"' Configure
         target=darwin64-arm64-cc
     fi
     # Static, so the bundle carries no libssl dylib; /private/etc/ssl/cert.pem is the macOS CA bundle.
