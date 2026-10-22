@@ -13,9 +13,15 @@ jobs:
           set +e
           clang --version | head -1
           printf 'char foobar () {}\nchar foobar();\nint main() { foobar(); return 0; }\n' > t.c
-          for f in "-O2" "-O0" "-O2 -fno-strict-return" "-O2 -fno-strict-return -std=gnu99" "-O2 -std=gnu99" "-O2 -mllvm -trap-unreachable=false" "-O2 -fno-strict-return -mllvm -trap-unreachable=false" "-O2 -Wno-return-type -fno-strict-return" "-O2 -Xclang -fno-strict-return"; do
-            cc $f -w -o t t.c && ./t; echo "flags=[$f] exit=$?"
+          for dt in "" 15.0 14.0; do
+            for f in "-O2" "-O2 -fvisibility=hidden" "-O2 -fvisibility=hidden -fno-strict-return" "-O0 -fvisibility=hidden"; do
+              if [ -n "$dt" ]; then export MACOSX_DEPLOYMENT_TARGET=$dt; else unset MACOSX_DEPLOYMENT_TARGET; fi
+              cc $f -w -o t t.c && ./t; echo "MDT=[$dt] flags=[$f] exit=$?"
+            done
           done
+          export MACOSX_DEPLOYMENT_TARGET=15.0
+          echo "== asm MDT=15.0 -O2 -fvisibility=hidden"; cc -O2 -fvisibility=hidden -S -o - t.c 2>/dev/null | sed -n '/_foobar:/,/_main:/p'
+          cc -O2 -fvisibility=hidden -w -o t t.c; otool -l t | grep -A4 LC_BUILD_VERSION; lldb --batch -o run -o bt -o 'disassemble --pc' ./t
           echo "== asm -O2"; cc -O2 -S -o - t.c 2>/dev/null | sed -n '/_foobar:/,/_main:/p'
           echo "== asm -O2 -fno-strict-return"; cc -O2 -fno-strict-return -S -o - t.c 2>/dev/null | sed -n '/_foobar:/,/_main:/p'
           echo "== -### -O2 -fno-strict-return"; cc -### -O2 -fno-strict-return -c t.c 2>&1 | tr ' ' '\n' | grep -iE 'strict|return|trap' 
