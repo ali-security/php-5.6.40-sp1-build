@@ -104,7 +104,9 @@ function build() {
     sdk=$(xcrun --show-sdk-path)
     export PATH="$(brew_prefix bison)/bin:$PATH"
     # Same compiler workarounds as the Homebrew formula (Xcode 12+ / 15.3+, ICU 61+ / 75+).
-    export CFLAGS="-O2 -Wno-implicit-function-declaration -Wno-incompatible-function-pointer-types -Wno-implicit-int -Wno-int-conversion -std=gnu99 -DU_DEFINE_FALSE_AND_TRUE=1"
+    # -fno-strict-return: Apple clang otherwise traps when a non-void function falls off its end, which
+    # PHP 5.6's own configure probes (GD build test) and older code paths do.
+    export CFLAGS="-O2 -fno-strict-return -Wno-implicit-function-declaration -Wno-incompatible-function-pointer-types -Wno-implicit-int -Wno-int-conversion -std=gnu99 -DU_DEFINE_FALSE_AND_TRUE=1"
     export CXXFLAGS="-O2 -DU_DEFINE_FALSE_AND_TRUE=1"
     export CPPFLAGS="-DU_USING_ICU_NAMESPACE=1"
     export CXX="clang++ -std=c++17"
