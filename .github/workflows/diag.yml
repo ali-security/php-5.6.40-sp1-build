@@ -1,0 +1,31 @@
+name: diag
+
+# Throwaway diagnostics for macOS link/run issues; not part of the build.
+on:
+  workflow_dispatch:
+
+jobs:
+  gd-probe:
+    runs-on: macos-15
+    steps:
+      - name: Link a trivial program against each GD dependency and run it
+        run: |
+          brew install jpeg libpng freetype
+          sw_vers; clang --version | head -1
+          cat > t.c <<'C'
+          char foobar () {}
+          char foobar();
+          int main() { foobar(); return 0; }
+          C
+          export MACOSX_DEPLOYMENT_TARGET=15.0
+          F="-O2 -std=gnu99 -fvisibility=hidden"
+          for libs in "" "-lz" "-ljpeg" "-lpng" "-lfreetype" "-lpng -lz -ljpeg -lfreetype"; do
+            L=""
+            for p in jpeg libpng freetype; do L="$L -L$(brew --prefix $p)/lib -Wl,-rpath,$(brew --prefix $p)/lib"; done
+            cc -o t $F t.c $L $libs && { ./t; echo "libs=[$libs] exit=$?"; }
+          done
+          unset MACOSX_DEPLOYMENT_TARGET
+          cc -o t2 $F t.c && { ./t2; echo "no-deployment-target exit=$?"; }
+          cc -o t3 -O0 -std=gnu99 t.c && { ./t3; echo "O0 exit=$?"; }
+          cc -O2 -std=gnu99 -S -o - t.c | head -40
+          lldb --batch -o run -o bt -o 'disassemble --pc' ./t || true
