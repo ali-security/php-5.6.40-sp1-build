@@ -13,6 +13,10 @@ TARBALL_SHA256=1369a51eee3995d7fbd1c5342e5cc917760e276d561595b6052b21ace2656d1c
 OPENSSL_VERSION=1.0.2u
 OPENSSL_URL=https://www.openssl.org/source/old/1.0.2/openssl-$OPENSSL_VERSION.tar.gz
 OPENSSL_SHA256=ecd0c6ffb493dd06707d38b14bb4d8c2288bb7033735606569d8f90f89669d16
+# buildconf with Homebrew's autoconf (2.72+) emits a broken configure for 5.6's AC_TRY_RUN checks.
+AUTOCONF_VERSION=2.71
+AUTOCONF_URL=https://ftp.gnu.org/gnu/autoconf/autoconf-$AUTOCONF_VERSION.tar.xz
+AUTOCONF_SHA256=f14c83cfebcc9427f2c3cea7258bd90df972d92eb26752da4ddad81c87a0faa4
 
 REPO_DIR=$(cd "$(dirname "$0")/.." && pwd)
 ARCH=$(uname -m)
@@ -29,9 +33,23 @@ JOBS=$(sysctl -n hw.ncpu)
 export MACOSX_DEPLOYMENT_TARGET=15.0
 
 function setup() {
-    brew install autoconf bison re2c pkgconf dylibbundler \
+    brew install bison re2c pkgconf dylibbundler \
         freetype jpeg libpng gmp icu4c@78 gettext tidy-html5 aspell freetds unixodbc libpq
     mkdir -p "$WORKDIR" "$OUT_DIR"
+}
+
+function build_autoconf() {
+    pushd "$WORKDIR"
+    curl -fsSL -o autoconf.tar.xz "$AUTOCONF_URL"
+    echo "$AUTOCONF_SHA256  autoconf.tar.xz" | shasum -a 256 -c -
+    tar -xJf autoconf.tar.xz
+    cd autoconf-$AUTOCONF_VERSION
+    ./configure --prefix="$WORKDIR/autoconf"
+    make
+    make install
+    popd
+    export PATH="$WORKDIR/autoconf/bin:$PATH"
+    autoconf --version | head -1
 }
 
 function brew_prefix() {
@@ -210,6 +228,7 @@ function bundle() {
 
 function main() {
     setup
+    build_autoconf
     build_openssl
     extract_source
     apply_patches
