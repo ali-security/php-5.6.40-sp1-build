@@ -57,4 +57,4 @@ jobs:
         run: |
           sw_vers
           tar -xzf out/php-5.6.40+sp1-macos-${{ matrix.arch }}.tar.gz -C "$RUNNER_TEMP"
-          scripts/verify-bundle.sh "$RUNNER_TEMP/php-5.6.40+sp1-macos-${{ matrix.arch }}/bin/php"
+          bash scripts/verify-bundle.sh "$RUNNER_TEMP/php-5.6.40+sp1-macos-${{ matrix.arch }}/bin/php"

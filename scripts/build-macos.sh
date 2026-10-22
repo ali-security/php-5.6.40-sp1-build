@@ -244,7 +244,7 @@ function main() {
     apply_patches
     build
     bundle
-    "$REPO_DIR/scripts/verify-bundle.sh" "$BUNDLE_DIR/bin/php"
+    bash "$REPO_DIR/scripts/verify-bundle.sh" "$BUNDLE_DIR/bin/php"
     build_test_trees
     verify_source_tests
 }
