@@ -58,7 +58,8 @@ LINE
     ./Configure $target no-shared no-ssl2 no-ssl3 --prefix="$OPENSSL_PREFIX" --openssldir=/private/etc/ssl
     make depend
     make -j"$JOBS"
-    make install_sw
+    # OPENSSLDIR is compiled in at Configure time; override it here only so install_sw stays out of /private/etc.
+    make install_sw OPENSSLDIR="$OPENSSL_PREFIX/ssl"
     popd
 }
 
