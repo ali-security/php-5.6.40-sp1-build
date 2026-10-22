@@ -22,14 +22,22 @@ jobs:
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
-      - name: Install VS2012, build, bundle, verify, run .phpt (official vs sealed)
+      - name: Install Visual Studio 2012 Express (VC11)
         shell: pwsh
-        run: scripts/build-windows.ps1 -Arch ${{ matrix.arch }}
+        run: scripts/build-windows.ps1 -Arch ${{ matrix.arch }} -Stage install
+      - name: Build and bundle
+        shell: pwsh
+        run: scripts/build-windows.ps1 -Arch ${{ matrix.arch }} -Stage build
+      - name: Verify bundle, run .phpt (official vs sealed)
+        shell: pwsh
+        run: scripts/build-windows.ps1 -Arch ${{ matrix.arch }} -Stage test
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: windows-${{ matrix.arch }}
-          path: out/
+          path: |
+            out/
+            ${{ runner.temp }}/vs2012*.log
           if-no-files-found: warn
 
   windows-verify:

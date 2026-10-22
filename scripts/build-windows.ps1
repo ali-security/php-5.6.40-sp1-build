@@ -3,7 +3,8 @@
 # configure --enable-snapshot-build, nmake snap. php-cgi.exe and phpdbg are dropped from the result
 # (CLI only); the Oracle extensions are not built (the 12c Instant Client SDK is no longer downloadable).
 param(
-    [Parameter(Mandatory = $true)][ValidateSet('x64', 'x86')][string]$Arch
+    [Parameter(Mandatory = $true)][ValidateSet('x64', 'x86')][string]$Arch,
+    [ValidateSet('install', 'build', 'test', 'all')][string]$Stage = 'all'
 )
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -58,7 +59,13 @@ function Install-VS2012 {
     if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') {
         throw "unexpected signature on $setup`: $($sig.Status) $($sig.SignerCertificate.Subject)"
     }
-    $p = Start-Process -FilePath $setup -ArgumentList '/Q', '/NoRestart', '/Full', '/Log', "$env:RUNNER_TEMP\vs2012.log" -Wait -PassThru
+    $p = Start-Process -FilePath $setup -ArgumentList '/Q', '/NoRestart', '/Full', '/Log', "$env:RUNNER_TEMP\vs2012.log" -PassThru
+    # A silent setup that hits a prompt never exits; fail with its logs instead of hanging the job.
+    if (-not $p.WaitForExit(45 * 60 * 1000)) {
+        Get-ChildItem "$env:RUNNER_TEMP\vs2012*.log" | ForEach-Object { Write-Host "== $_"; Get-Content $_ -Tail 60 }
+        Stop-Process -Id $p.Id -Force
+        throw 'VS2012 setup did not finish in 45 minutes'
+    }
     Write-Host "VS2012 setup exit code: $($p.ExitCode)"
     if ($p.ExitCode -ne 0 -and $p.ExitCode -ne 3010) {
         Get-ChildItem "$env:RUNNER_TEMP\vs2012*.log" | ForEach-Object { Get-Content $_ -Tail 80 }
@@ -140,10 +147,17 @@ function Test-Phpt([string]$Bundle) {
     $pristine | Where-Object { $sealed -notcontains $_ } | Tee-Object -FilePath "$OutDir\phpt-pristine-only-win-$Arch.txt"
 }
 
-Install-VS2012
-Initialize-Tree
-Invoke-Build
-$bundle = New-Bundle
-& "$RepoDir\scripts\verify-bundle.ps1" -Bundle $bundle
-if ($LASTEXITCODE -ne 0) { throw 'verify-bundle.ps1 failed' }
-Test-Phpt -Bundle $bundle
+if ($Stage -in 'install', 'all') {
+    Install-VS2012
+}
+if ($Stage -in 'build', 'all') {
+    Initialize-Tree
+    Invoke-Build
+    New-Bundle | Out-Null
+}
+if ($Stage -in 'test', 'all') {
+    $bundle = "$Work\$BundleName"
+    & "$RepoDir\scripts\verify-bundle.ps1" -Bundle $bundle
+    if ($LASTEXITCODE -ne 0) { throw 'verify-bundle.ps1 failed' }
+    Test-Phpt -Bundle $bundle
+}
