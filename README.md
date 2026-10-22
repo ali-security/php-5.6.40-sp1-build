@@ -8,7 +8,9 @@ for macOS (Sequoia, Tahoe; arm64, x86_64) and Windows (x64, x86, NTS, VC11).
   shipped in `sealed-libraries` `APK/php5/5.6.38-r00`.
 - `patches/build/macos-build-compat.patch`: macOS build-only fixes, not security changes: SDK library
   paths and arm64-safe `EX_TMP_VAR` (from the shivammathur/php `php@5.6` formula), and no
-  `-fvisibility=hidden` on Darwin (a hidden `main()` gets a bad entry point from Apple's linker at -O2).
+  `-fvisibility=hidden` on Darwin (a hidden `main()` gets a bad entry point from Apple's linker at -O2),
+  libtool `-undefined dynamic_lookup` for macOS 11+ deployment targets, ICU 70+ `operator==` returning
+  `bool` in ext/intl, and tidy-html5's `tidybuffio.h`.
 - `scripts/build-macos.sh`, `scripts/build-windows.ps1`: build from the pristine php.net tarball.
 - `scripts/verify-bundle.{sh,ps1}`: checks run on every target runner.
 

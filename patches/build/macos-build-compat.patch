@@ -94,6 +94,30 @@ index 3db74382..0fd96236 100644
      then
        PHP_CHECK_LIBRARY($iconv_lib_name, libiconv, [
          found_iconv=yes
+diff --git a/build/libtool.m4 b/build/libtool.m4
+index f7f51642..6d55196b 100644
+--- a/build/libtool.m4
++++ b/build/libtool.m4
+@@ -340,7 +340,8 @@ AC_DEFUN([_LT_REQUIRED_DARWIN_CHECKS],[
+      _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
+    10.[[012]]*)
+      _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
+-   10.*)
++   *)
++     # 10.3+ and every macOS 11+ deployment target
+      _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
+       esac
+     ;;
+@@ -5803,7 +5804,8 @@ _LT_EOF
+              10.[[012]])
+                _LT_AC_TAGVAR(allow_undefined_flag, $1)='${wl}-flat_namespace ${wl}-undefined ${wl}suppress'
+                ;;
+-             10.*)
++             *)
++               # 10.3+ and every macOS 11+ deployment target
+                _LT_AC_TAGVAR(allow_undefined_flag, $1)='${wl}-undefined ${wl}dynamic_lookup'
+                ;;
+            esac
 diff --git a/configure.in b/configure.in
 index cd122303..191700a0 100644
 --- a/configure.in
@@ -116,3 +140,42 @@ index cd122303..191700a0 100644
    fi
  fi
  
+diff --git a/ext/intl/breakiterator/codepointiterator_internal.cpp b/ext/intl/breakiterator/codepointiterator_internal.cpp
+index bf9239d5..c6d75f18 100644
+--- a/ext/intl/breakiterator/codepointiterator_internal.cpp
++++ b/ext/intl/breakiterator/codepointiterator_internal.cpp
+@@ -72,7 +72,7 @@ CodePointBreakIterator::~CodePointBreakIterator()
+ 	clearCurrentCharIter();
+ }
+ 
+-UBool CodePointBreakIterator::operator==(const BreakIterator& that) const
++bool CodePointBreakIterator::operator==(const BreakIterator& that) const
+ {
+ 	if (typeid(*this) != typeid(that)) {
+ 		return FALSE;
+diff --git a/ext/intl/breakiterator/codepointiterator_internal.h b/ext/intl/breakiterator/codepointiterator_internal.h
+index 933347b8..1f5a5bf5 100644
+--- a/ext/intl/breakiterator/codepointiterator_internal.h
++++ b/ext/intl/breakiterator/codepointiterator_internal.h
+@@ -36,7 +36,7 @@ namespace PHP {
+ 
+ 		virtual ~CodePointBreakIterator();
+ 
+-		virtual UBool operator==(const BreakIterator& that) const;
++		virtual bool operator==(const BreakIterator& that) const;
+ 
+ 		virtual CodePointBreakIterator* clone(void) const;
+ 
+diff --git a/ext/tidy/tidy.c b/ext/tidy/tidy.c
+index 57f050b2..4af30f2b 100644
+--- a/ext/tidy/tidy.c
++++ b/ext/tidy/tidy.c
+@@ -31,7 +31,7 @@
+ #include "ext/standard/info.h"
+ 
+ #include "tidy.h"
+-#include "buffio.h"
++#include "tidybuffio.h"
+ 
+ /* compatibility with older versions of libtidy */
+ #ifndef TIDY_CALL
