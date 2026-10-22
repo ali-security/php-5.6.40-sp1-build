@@ -1,0 +1,21 @@
+--sealboundary
+Content-Disposition: form-data; name="a"
+Content-Disposition: form-data; name="dup"
+X-Junk: 1
+
+1
+--sealboundary
+Content-Disposition: form-data; name="f"; filename="x.txt"
+Content-Type: text/plain
+Content-Type: application/evil
+
+x
+--sealboundary
+Content-Disposition: form-data; name="b"
+
+2
+--sealboundary
+Content-Disposition: form-data; name="c"
+
+3
+--sealboundary--

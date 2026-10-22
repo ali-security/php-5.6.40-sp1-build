@@ -1,0 +1,108 @@
+name: build
+
+# Builds and verifies the sealed PHP 5.6.40+sp1 CLI bundles (CVE-2026-109618, CVE-2026-109619) for
+# macOS (Sequoia, Tahoe; arm64, x86_64) and Windows (x64, x86).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos-build:
+    name: macos-build (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: macos-15, arch: arm64 }
+          - { runner: macos-15-intel, arch: x86_64 }
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build, bundle, verify, run .phpt (pristine vs sealed)
+        run: scripts/build-macos.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-${{ matrix.arch }}
+          path: out/
+          if-no-files-found: warn
+
+  macos-verify:
+    name: macos-verify (${{ matrix.runner }})
+    needs: macos-build
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: macos-15, arch: arm64 }
+          - { runner: macos-26, arch: arm64 }
+          - { runner: macos-15-intel, arch: x86_64 }
+          - { runner: macos-26-intel, arch: x86_64 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos-${{ matrix.arch }}
+          path: out
+      - name: Verify bundle on a clean runner (no Homebrew deps installed for it)
+        run: |
+          sw_vers
+          tar -xzf out/php-5.6.40+sp1-macos-${{ matrix.arch }}.tar.gz -C "$RUNNER_TEMP"
+          scripts/verify-bundle.sh "$RUNNER_TEMP/php-5.6.40+sp1-macos-${{ matrix.arch }}/bin/php"
+
+  windows-build:
+    name: windows-build (${{ matrix.arch }})
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, x86]
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install VS2012, build, bundle, verify, run .phpt (official vs sealed)
+        shell: pwsh
+        run: scripts/build-windows.ps1 -Arch ${{ matrix.arch }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-${{ matrix.arch }}
+          path: out/
+          if-no-files-found: warn
+
+  windows-verify:
+    name: windows-verify (${{ matrix.runner }}, ${{ matrix.arch }})
+    needs: windows-build
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [windows-2022, windows-2025]
+        arch: [x64, x86]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-${{ matrix.arch }}
+          path: out
+      - name: Install the VC++ 2012 runtime (required by every PHP 5.5/5.6 Windows build)
+        shell: pwsh
+        run: |
+          $url = if ('${{ matrix.arch }}' -eq 'x64') { 'https://download.microsoft.com/download/1/6/B/16B06F60-3B20-4FF2-B699-5E9B7962F9AE/VSU_4/vcredist_x64.exe' } else { 'https://download.microsoft.com/download/1/6/B/16B06F60-3B20-4FF2-B699-5E9B7962F9AE/VSU_4/vcredist_x86.exe' }
+          Invoke-WebRequest -Uri $url -OutFile "$env:RUNNER_TEMP\vcredist.exe"
+          $sig = Get-AuthenticodeSignature "$env:RUNNER_TEMP\vcredist.exe"
+          if ($sig.Status -ne 'Valid') { throw "vcredist signature: $($sig.Status)" }
+          $p = Start-Process "$env:RUNNER_TEMP\vcredist.exe" -ArgumentList '/install', '/quiet', '/norestart' -Wait -PassThru
+          if ($p.ExitCode -ne 0 -and $p.ExitCode -ne 3010 -and $p.ExitCode -ne 1638) { throw "vcredist exit $($p.ExitCode)" }
+      - name: Verify bundle
+        shell: pwsh
+        run: |
+          [System.Environment]::OSVersion.VersionString
+          Expand-Archive -Path out/php-5.6.40+sp1-win-${{ matrix.arch }}.zip -DestinationPath "$env:RUNNER_TEMP\php"
+          scripts/verify-bundle.ps1 -Bundle "$env:RUNNER_TEMP\php"

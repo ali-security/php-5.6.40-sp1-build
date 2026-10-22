@@ -1,0 +1,4 @@
+*.bin binary
+*.patch -text
+*.sh text eol=lf
+*.ps1 text eol=crlf
