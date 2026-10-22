@@ -195,7 +195,7 @@ function run_phpt() {
         "$dir/sapi/cli/php" -n run-tests.php -n -q "$@" | tee "$WORKDIR/phpt-$name.log" || true
     # run-tests.php separates its progress line from each result with \r.
     tr '\r' '\n' < "$WORKDIR/phpt-$name.log" | grep -aE '^(FAIL|XFAIL|BORK|LEAK|SKIP) ' \
-        | sed -E 's/ +(XFAIL REASON|reason):.*//I; s/ +$//' | sort -u > "$WORKDIR/phpt-$name.results" || true
+        | sed -E 's/ +(XFAIL REASON|[Rr]eason):.*//; s/ +$//' | sort -u > "$WORKDIR/phpt-$name.results" || true
     popd
 }
 
