@@ -5,28 +5,36 @@ on:
   workflow_dispatch:
 
 jobs:
-  openssl-arm64:
-    runs-on: macos-15
+  openssl:
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
-        cflags: ["-O3", "-O1", "-O0", "-O3 -fwrapv", "-O3 -fno-strict-aliasing"]
+        include:
+          - { runner: macos-15, cflags: "-O0" }
+          - { runner: macos-15, cflags: "-O1" }
+          - { runner: macos-15, cflags: "-O1 -fno-strict-aliasing" }
+          - { runner: macos-15, cflags: "-O2 -fno-strict-aliasing" }
+          - { runner: macos-15, cflags: "-O3 -fno-strict-aliasing" }
+          - { runner: macos-15-intel, cflags: "-fno-strict-aliasing" }
     steps:
-      - name: OpenSSL 1.0.2u darwin64-arm64-cc bntest/ectest with ${{ matrix.cflags }}
+      - name: OpenSSL 1.0.2u make -k test (${{ matrix.runner }}, ${{ matrix.cflags }})
         run: |
           curl -fsSL -o o.tgz https://www.openssl.org/source/old/1.0.2/openssl-1.0.2u.tar.gz
           echo "ecd0c6ffb493dd06707d38b14bb4d8c2288bb7033735606569d8f90f89669d16  o.tgz" | shasum -a 256 -c -
           tar -xzf o.tgz && cd openssl-1.0.2u
-          cat > line <<'LINE'
+          if [ "$(uname -m)" = arm64 ]; then
+            cat > line <<'LINE'
           "darwin64-arm64-cc","cc:-arch arm64 @CFLAGS@ -DL_ENDIAN -Wall::-D_REENTRANT:MACOSX:-Wl,-search_paths_first%:SIXTY_FOUR_BIT_LONG RC4_CHAR RC4_CHUNK DES_INT DES_UNROLL BF_PTR:${no_asm}:dlfcn:darwin-shared:-fPIC -fno-common:-arch arm64 -dynamiclib:.\$(SHLIB_MAJOR).\$(SHLIB_MINOR).dylib",
           LINE
-          sed -i '' -e 's/^ *//' -e "s/@CFLAGS@/${{ matrix.cflags }}/" line
-          LINE_FILE=line perl -i -pe 'BEGIN { local $/; open my $f, "<", $ENV{LINE_FILE} or die; $l = <$f> } $_ .= $l if /^"darwin64-x86_64-cc"/' Configure
-          ./Configure darwin64-arm64-cc no-shared no-ssl2 no-ssl3 >/dev/null
+            sed -i '' -e 's/^ *//' -e "s/@CFLAGS@/${{ matrix.cflags }}/" line
+            LINE_FILE=line perl -i -pe 'BEGIN { local $/; open my $f, "<", $ENV{LINE_FILE} or die; $l = <$f> } $_ .= $l if /^"darwin64-x86_64-cc"/' Configure
+            ./Configure darwin64-arm64-cc no-shared no-ssl2 no-ssl3 >/dev/null
+          else
+            ./Configure darwin64-x86_64-cc no-shared no-ssl2 no-ssl3 ${{ matrix.cflags }} >/dev/null
+          fi
           grep -E '^CFLAG=' Makefile
           make depend >/dev/null 2>&1; make >/dev/null 2>&1
-          cd test; make bntest ectest exptest >/dev/null 2>&1 || true
           set +e
-          ./bntest > /dev/null 2>bn.err; echo "bntest exit=$?"; tail -3 bn.err
-          ./ectest 2>&1 | tail -3; echo "ectest exit=${PIPESTATUS[0]}"
-          ./exptest 2>&1 | tail -2; echo "exptest exit=${PIPESTATUS[0]}"
+          make -k test > test.log 2>&1; echo "make test exit=$?"
+          grep -nE 'mismatch|verify error|failed|FAIL|Error [0-9]|\*\*\*' test.log | head -30
