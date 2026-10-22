@@ -152,7 +152,8 @@ function build() {
         --with-xsl="$sdk/usr" \
         --with-zlib="$sdk/usr" \
         --with-pic
-    make -j"$JOBS"
+    # -k: report every failing object in one CI run, then fail.
+    make -k -j"$JOBS" || { make 2>&1 | grep -E 'error:' | sort -u | head -100; exit 1; }
     make install INSTALL_ROOT="$INSTALL_ROOT"
     popd
 }
