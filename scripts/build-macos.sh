@@ -34,7 +34,7 @@ export MACOSX_DEPLOYMENT_TARGET=15.0
 
 function setup() {
     brew install bison re2c pkgconf dylibbundler \
-        freetype jpeg libpng gmp icu4c@78 gettext tidy-html5 aspell freetds unixodbc libpq
+        freetype jpeg libpng gmp icu4c@78 gettext tidy-html5 aspell freetds unixodbc libpq openldap
     mkdir -p "$WORKDIR" "$OUT_DIR"
 }
 
@@ -130,7 +130,7 @@ function build() {
         --with-icu-dir="$(brew_prefix icu4c@78)" \
         --with-jpeg-dir="$(brew_prefix jpeg)" \
         --with-png-dir="$(brew_prefix libpng)" \
-        --with-ldap="$sdk/usr" \
+        --with-ldap="$(brew_prefix openldap)" \
         --with-ldap-sasl="$sdk/usr" \
         --with-libedit="$sdk/usr" \
         --with-libxml-dir="$sdk/usr" \
