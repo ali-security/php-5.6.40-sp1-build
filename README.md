@@ -6,8 +6,9 @@ for macOS (Sequoia, Tahoe; arm64, x86_64) and Windows (x64, x86, NTS, VC11).
 - `patches/CVE-2026-109618+CVE-2026-109619.patch`: Seal's 5.6 port of PHP's EOL minimal mitigation
   ([712e60f9](https://github.com/php/php-src/commit/712e60f9edfd03f0960fc4fc3c2c375f42b90aa2)), as
   shipped in `sealed-libraries` `APK/php5/5.6.38-r00`.
-- `patches/build/`: macOS build-only fixes from the shivammathur/php `php@5.6` formula (SDK library
-  paths, arm64-safe `EX_TMP_VAR`). Not security changes.
+- `patches/build/macos-build-compat.patch`: macOS build-only fixes, not security changes: SDK library
+  paths and arm64-safe `EX_TMP_VAR` (from the shivammathur/php `php@5.6` formula), and no
+  `-fvisibility=hidden` on Darwin (a hidden `main()` gets a bad entry point from Apple's linker at -O2).
 - `scripts/build-macos.sh`, `scripts/build-windows.ps1`: build from the pristine php.net tarball.
 - `scripts/verify-bundle.{sh,ps1}`: checks run on every target runner.
 

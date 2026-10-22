@@ -94,3 +94,25 @@ index 3db74382..0fd96236 100644
      then
        PHP_CHECK_LIBRARY($iconv_lib_name, libiconv, [
          found_iconv=yes
+diff --git a/configure.in b/configure.in
+index cd122303..191700a0 100644
+--- a/configure.in
++++ b/configure.in
+@@ -295,8 +295,16 @@ if test "$GCC" = "yes"; then
+     GCC_MAJOR_VERSION=`$CC --version | $SED -n '1s/[[^0-9]]*//;1s/\..*//;1p'`
+     ;;
+   esac
++  dnl Not on Darwin: with Apple's linker a hidden main() can resolve the entry point to the
++  dnl Mach-O header at -O2, so configure's run probes and the php binary die with SIGILL.
+   if test $GCC_MAJOR_VERSION -ge 4; then
+-    CFLAGS="$CFLAGS -fvisibility=hidden"
++    case $host_alias in
++    *darwin*)
++      ;;
++    *)
++      CFLAGS="$CFLAGS -fvisibility=hidden"
++      ;;
++    esac
+   fi
+ fi
+ 

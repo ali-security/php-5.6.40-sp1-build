@@ -94,7 +94,7 @@ function extract_source() {
 function apply_patches() {
     pushd "$CODE_DIR"
     patch -p1 --fuzz=0 < "$REPO_DIR/patches/CVE-2026-109618+CVE-2026-109619.patch"
-    patch -p1 --fuzz=0 < "$REPO_DIR/patches/build/macos-sdk-paths-and-ex-tmp-var.patch"
+    patch -p1 --fuzz=0 < "$REPO_DIR/patches/build/macos-build-compat.patch"
     popd
 }
 
@@ -104,9 +104,7 @@ function build() {
     sdk=$(xcrun --show-sdk-path)
     export PATH="$(brew_prefix bison)/bin:$PATH"
     # Same compiler workarounds as the Homebrew formula (Xcode 12+ / 15.3+, ICU 61+ / 75+).
-    # -fno-strict-return: Apple clang otherwise traps when a non-void function falls off its end, which
-    # PHP 5.6's own configure probes (GD build test) and older code paths do.
-    export CFLAGS="-O2 -fno-strict-return -Wno-implicit-function-declaration -Wno-incompatible-function-pointer-types -Wno-implicit-int -Wno-int-conversion -std=gnu99 -DU_DEFINE_FALSE_AND_TRUE=1"
+    export CFLAGS="-O2 -Wno-implicit-function-declaration -Wno-incompatible-function-pointer-types -Wno-implicit-int -Wno-int-conversion -std=gnu99 -DU_DEFINE_FALSE_AND_TRUE=1"
     export CXXFLAGS="-O2 -DU_DEFINE_FALSE_AND_TRUE=1"
     export CPPFLAGS="-DU_USING_ICU_NAMESPACE=1"
     export CXX="clang++ -std=c++17"
@@ -167,7 +165,7 @@ function build_test_trees() {
         mkdir -p "$dir"
         tar -xJf "$WORKDIR/php-$VERSION.tar.xz" -C "$dir"
         pushd "$dir/php-$VERSION"
-        patch -p1 --fuzz=0 < "$REPO_DIR/patches/build/macos-sdk-paths-and-ex-tmp-var.patch"
+        patch -p1 --fuzz=0 < "$REPO_DIR/patches/build/macos-build-compat.patch"
         if [ $name = sealed ]; then
             patch -p1 --fuzz=0 < "$REPO_DIR/patches/CVE-2026-109618+CVE-2026-109619.patch"
         fi
