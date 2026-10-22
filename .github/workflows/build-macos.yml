@@ -1,0 +1,60 @@
+name: build-macos
+
+# Builds and verifies the sealed PHP 5.6.40+sp1 CLI bundles (CVE-2026-109618, CVE-2026-109619) for
+# macOS Sequoia and Tahoe, arm64 and x86_64.
+on:
+  push:
+    branches: [main]
+    paths: [patches/**, scripts/build-macos.sh, scripts/verify-bundle.sh, tests/**, .github/workflows/build-macos.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos-build:
+    name: macos-build (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: macos-15, arch: arm64 }
+          - { runner: macos-15-intel, arch: x86_64 }
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build, bundle, verify, run .phpt (pristine vs sealed)
+        run: scripts/build-macos.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-${{ matrix.arch }}
+          path: |
+            out/
+            work/php-5.6.40/config.log
+          if-no-files-found: warn
+
+  macos-verify:
+    name: macos-verify (${{ matrix.runner }})
+    needs: macos-build
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: macos-15, arch: arm64 }
+          - { runner: macos-26, arch: arm64 }
+          - { runner: macos-15-intel, arch: x86_64 }
+          - { runner: macos-26-intel, arch: x86_64 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos-${{ matrix.arch }}
+          path: out
+      - name: Verify bundle on a clean runner (no Homebrew deps installed for it)
+        run: |
+          sw_vers
+          tar -xzf out/php-5.6.40+sp1-macos-${{ matrix.arch }}.tar.gz -C "$RUNNER_TEMP"
+          scripts/verify-bundle.sh "$RUNNER_TEMP/php-5.6.40+sp1-macos-${{ matrix.arch }}/bin/php"
