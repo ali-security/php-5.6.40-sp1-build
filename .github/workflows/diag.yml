@@ -1,27 +1,32 @@
 name: diag
 
-# Throwaway diagnostics for macOS link/run issues; not part of the build.
+# Throwaway diagnostics; not part of the build.
 on:
   workflow_dispatch:
 
 jobs:
-  gd-probe:
+  openssl-arm64:
     runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        cflags: ["-O3", "-O1", "-O0", "-O3 -fwrapv", "-O3 -fno-strict-aliasing"]
     steps:
-      - name: Which flags stop Apple clang trapping on a missing return in C
+      - name: OpenSSL 1.0.2u darwin64-arm64-cc bntest/ectest with ${{ matrix.cflags }}
         run: |
+          curl -fsSL -o o.tgz https://www.openssl.org/source/old/1.0.2/openssl-1.0.2u.tar.gz
+          echo "ecd0c6ffb493dd06707d38b14bb4d8c2288bb7033735606569d8f90f89669d16  o.tgz" | shasum -a 256 -c -
+          tar -xzf o.tgz && cd openssl-1.0.2u
+          cat > line <<'LINE'
+          "darwin64-arm64-cc","cc:-arch arm64 @CFLAGS@ -DL_ENDIAN -Wall::-D_REENTRANT:MACOSX:-Wl,-search_paths_first%:SIXTY_FOUR_BIT_LONG RC4_CHAR RC4_CHUNK DES_INT DES_UNROLL BF_PTR:${no_asm}:dlfcn:darwin-shared:-fPIC -fno-common:-arch arm64 -dynamiclib:.\$(SHLIB_MAJOR).\$(SHLIB_MINOR).dylib",
+          LINE
+          sed -i '' -e 's/^ *//' -e "s/@CFLAGS@/${{ matrix.cflags }}/" line
+          LINE_FILE=line perl -i -pe 'BEGIN { local $/; open my $f, "<", $ENV{LINE_FILE} or die; $l = <$f> } $_ .= $l if /^"darwin64-x86_64-cc"/' Configure
+          ./Configure darwin64-arm64-cc no-shared no-ssl2 no-ssl3 >/dev/null
+          grep -E '^CFLAG=' Makefile
+          make depend >/dev/null 2>&1; make >/dev/null 2>&1
+          cd test; make bntest ectest exptest >/dev/null 2>&1 || true
           set +e
-          clang --version | head -1
-          printf 'char foobar () {}\nchar foobar();\nint main() { foobar(); return 0; }\n' > t.c
-          for dt in "" 15.0 14.0; do
-            for f in "-O2" "-O2 -fvisibility=hidden" "-O2 -fvisibility=hidden -fno-strict-return" "-O0 -fvisibility=hidden"; do
-              if [ -n "$dt" ]; then export MACOSX_DEPLOYMENT_TARGET=$dt; else unset MACOSX_DEPLOYMENT_TARGET; fi
-              cc $f -w -o t t.c && ./t; echo "MDT=[$dt] flags=[$f] exit=$?"
-            done
-          done
-          export MACOSX_DEPLOYMENT_TARGET=15.0
-          echo "== asm MDT=15.0 -O2 -fvisibility=hidden"; cc -O2 -fvisibility=hidden -S -o - t.c 2>/dev/null | sed -n '/_foobar:/,/_main:/p'
-          cc -O2 -fvisibility=hidden -w -o t t.c; otool -l t | grep -A4 LC_BUILD_VERSION; lldb --batch -o run -o bt -o 'disassemble --pc' ./t
-          echo "== asm -O2"; cc -O2 -S -o - t.c 2>/dev/null | sed -n '/_foobar:/,/_main:/p'
-          echo "== asm -O2 -fno-strict-return"; cc -O2 -fno-strict-return -S -o - t.c 2>/dev/null | sed -n '/_foobar:/,/_main:/p'
-          echo "== -### -O2 -fno-strict-return"; cc -### -O2 -fno-strict-return -c t.c 2>&1 | tr ' ' '\n' | grep -iE 'strict|return|trap' 
+          ./bntest > /dev/null 2>bn.err; echo "bntest exit=$?"; tail -3 bn.err
+          ./ectest 2>&1 | tail -3; echo "ectest exit=${PIPESTATUS[0]}"
+          ./exptest 2>&1 | tail -2; echo "exptest exit=${PIPESTATUS[0]}"
