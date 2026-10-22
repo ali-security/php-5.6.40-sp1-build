@@ -29,7 +29,9 @@ jobs:
         if: always()
         with:
           name: macos-${{ matrix.arch }}
-          path: out/
+          path: |
+            out/
+            work/php-5.6.40/config.log
           if-no-files-found: warn
 
   macos-verify:
