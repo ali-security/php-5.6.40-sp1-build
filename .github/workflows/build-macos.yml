@@ -52,7 +52,8 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: macos-${{ matrix.arch }}
-          path: out
+          # The build artifact is rooted at the workspace (out/ and work/.../config.log).
+          path: .
       - name: Verify bundle on a clean runner (no Homebrew deps installed for it)
         run: |
           sw_vers

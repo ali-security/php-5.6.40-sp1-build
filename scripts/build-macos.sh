@@ -193,7 +193,9 @@ function run_phpt() {
     echo "== phpt: $name: $*"
     TEST_PHP_EXECUTABLE=$dir/sapi/cli/php TEST_PHP_CGI_EXECUTABLE=$dir/sapi/cgi/php-cgi NO_INTERACTION=1 \
         "$dir/sapi/cli/php" -n run-tests.php -n -q "$@" | tee "$WORKDIR/phpt-$name.log" || true
-    grep -E '^(FAIL|SKIP)' "$WORKDIR/phpt-$name.log" | sed 's/ \[.*//' | sort > "$WORKDIR/phpt-$name.results" || true
+    # run-tests.php separates its progress line from each result with \r.
+    tr '\r' '\n' < "$WORKDIR/phpt-$name.log" | grep -aE '^(FAIL|XFAIL|BORK|LEAK|SKIP) ' \
+        | sed -E 's/ +(XFAIL REASON|reason):.*//I; s/ +$//' | sort -u > "$WORKDIR/phpt-$name.results" || true
     popd
 }
 
