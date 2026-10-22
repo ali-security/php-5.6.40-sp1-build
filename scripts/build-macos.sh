@@ -105,7 +105,8 @@ function build() {
     export PATH="$(brew_prefix bison)/bin:$PATH"
     # Same compiler workarounds as the Homebrew formula (Xcode 12+ / 15.3+, ICU 61+ / 75+).
     export CFLAGS="-O2 -Wno-implicit-function-declaration -Wno-incompatible-function-pointer-types -Wno-implicit-int -Wno-int-conversion -std=gnu99 -DU_DEFINE_FALSE_AND_TRUE=1"
-    export CXXFLAGS="-O2 -DU_DEFINE_FALSE_AND_TRUE=1"
+    # 5.6 headers use `register`, which C++17 (needed by ICU 75+) rejects in ext/intl.
+    export CXXFLAGS="-O2 -Wno-register -DU_DEFINE_FALSE_AND_TRUE=1"
     export CPPFLAGS="-DU_USING_ICU_NAMESPACE=1"
     export CXX="clang++ -std=c++17"
     export lt_cv_path_SED=sed
